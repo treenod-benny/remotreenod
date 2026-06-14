@@ -15,6 +15,7 @@ import { LAYOUT_EDITOR, LayoutEditor } from '../editor/LayoutEditor';
 import { Player } from '../objects/Player';
 import { canLandOnOneWaySurface } from '../physics/oneWaySurface';
 import { InteractionPrompt } from '../ui/InteractionPrompt';
+import type { AppUser } from '../../auth/types';
 
 const DEBUG_PHYSICS = import.meta.env.VITE_DEBUG_PHYSICS === 'true';
 
@@ -99,7 +100,8 @@ export class CafeScene extends Phaser.Scene {
   }
 
   private createPlayer() {
-    this.player = new Player(this, 240, CAFE_GROUND_Y);
+    const user = this.registry.get('currentUser') as AppUser | undefined;
+    this.player = new Player(this, 240, CAFE_GROUND_Y, user);
     const ground = CAFE_SURFACES.find((surface) => surface.id === 'surface.ground') ?? CAFE_SURFACES[0];
     this.player.alignBodyBottomTo(ground.y - ground.height / 2);
     this.physics.add.collider(this.player, this.collisionSurfaces);

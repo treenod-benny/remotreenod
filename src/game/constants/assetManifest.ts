@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ASSET_KEYS } from './assetKeys';
 import { EDITOR_IMAGE_ASSETS } from './editorAssets';
+import { PLAYER_CHARACTERS } from './playerCharacters';
 
 const LOBBY_ASSET_BASE = '/assets/lobby';
 const OFFICE_ASSET_BASE = '/assets/office';
@@ -24,7 +25,7 @@ export const IMAGE_ASSETS = [
   { key: ASSET_KEYS.npcPokota, path: `${LOBBY_ASSET_BASE}/npc_pokota.png` },
   { key: ASSET_KEYS.bench, path: `${LOBBY_ASSET_BASE}/obj_bench.png` },
   { key: ASSET_KEYS.lamp, path: `${LOBBY_ASSET_BASE}/obj_lamp.png` },
-  { key: ASSET_KEYS.player, path: '/assets/treetive.png' },
+  ...PLAYER_CHARACTERS.map((character) => ({ key: character.assetKey, path: character.imagePath })),
   { key: ASSET_KEYS.officeSkyGradient, path: `${OFFICE_ASSET_BASE}/sky_gradient.png` },
   { key: ASSET_KEYS.officeWindow, path: `${OFFICE_ASSET_BASE}/bg_window.png` },
   { key: ASSET_KEYS.officeFloor, path: `${OFFICE_ASSET_BASE}/office_floor.png` },

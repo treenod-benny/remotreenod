@@ -16,7 +16,6 @@ export const ASSET_KEYS = {
   npcPokota: 'npc-pokota',
   bench: 'bench',
   lamp: 'lamp',
-  player: 'player',
   officeSkyGradient: 'office-sky-gradient',
   officeWindow: 'office-window',
   officeFloor: 'office-floor',

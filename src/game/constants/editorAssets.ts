@@ -52,7 +52,6 @@ export const EDITOR_IMAGE_ASSETS = [
   { key: 'editor-office-workroom-background', path: '/assets/office/workroom_background.png', label: 'office/workroom_background.png' },
   { key: 'editor-office-workroom-structure', path: '/assets/office/workroom_structure.png', label: 'office/workroom_structure.png' },
   { key: 'editor-office-work-spot-02', path: '/assets/office/work_spot_02.png', label: 'office/work_spot_02.png' },
-  { key: 'editor-treetive', path: '/assets/treetive.png', label: 'treetive.png' },
   { key: 'editor-treetive-01', path: '/assets/treetive/treetive_01.png', label: 'treetive/treetive_01.png' },
   { key: 'editor-treetive-02', path: '/assets/treetive/treetive_02.png', label: 'treetive/treetive_02.png' },
   { key: 'editor-treetive-03', path: '/assets/treetive/treetive_03.png', label: 'treetive/treetive_03.png' },

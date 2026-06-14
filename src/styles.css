@@ -59,12 +59,195 @@ body {
 }
 
 .app-shell {
+  position: relative;
   display: grid;
   width: 100%;
   height: 100%;
   min-width: 320px;
   place-items: center;
   background: #101820;
+}
+
+.entry-screen {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(28, 95, 132, 0.34), rgba(16, 24, 32, 0.92)),
+    #101820;
+}
+
+.entry-panel {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(16, 24, 32, 0.86);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.entry-kicker {
+  margin: 0 0 8px;
+  color: #94d7ff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.entry-panel h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.entry-field {
+  display: grid;
+  gap: 8px;
+  color: #d9ecf8;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.entry-field input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  padding: 0 14px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font: inherit;
+}
+
+.entry-field input:focus {
+  border-color: #89dcff;
+  box-shadow: 0 0 0 3px rgba(137, 220, 255, 0.18);
+}
+
+.character-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.character-picker legend {
+  margin-bottom: 10px;
+  color: #d9ecf8;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.character-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.character-option {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  justify-items: center;
+  padding: 10px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+
+.character-option[data-selected="true"] {
+  border-color: #f4ca64;
+  background: rgba(244, 202, 100, 0.16);
+}
+
+.character-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.character-option img {
+  width: 64px;
+  height: 84px;
+  object-fit: contain;
+}
+
+.character-option span {
+  overflow: hidden;
+  max-width: 100%;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-panel button,
+.user-bar button {
+  border: 0;
+  border-radius: 6px;
+  background: #f4ca64;
+  color: #17202a;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.entry-panel button {
+  height: 44px;
+}
+
+.entry-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.user-bar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(16, 24, 32, 0.76);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.user-bar span {
+  overflow: hidden;
+  max-width: 180px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-bar button {
+  min-width: 70px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .character-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .phaser-host {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { ASSET_KEYS } from '../constants/assetKeys';
+import type { AppUser } from '../../auth/types';
+import { getPlayerCharacter } from '../constants/playerCharacters';
 
 type MovementKeys = {
   left: Phaser.Input.Keyboard.Key;
@@ -19,9 +20,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private jumpsRemaining = 2;
   private dropThroughUntil = 0;
   private oneWayDropEnabledUntil = 0;
+  private nameplate?: Phaser.GameObjects.Text;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, ASSET_KEYS.player);
+  constructor(scene: Phaser.Scene, x: number, y: number, user?: AppUser) {
+    super(scene, x, y, getPlayerCharacter(user?.characterId).assetKey);
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -45,6 +47,25 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       down: Phaser.Input.Keyboard.KeyCodes.S,
       jump: Phaser.Input.Keyboard.KeyCodes.SPACE,
     }) as MovementKeys;
+
+    if (user?.displayName) {
+      this.nameplate = scene.add
+        .text(x, y - this.displayHeight - 20, user.displayName, {
+          fontFamily: 'NanumSquareRound, Arial, sans-serif',
+          fontSize: '16px',
+          color: '#ffffff',
+          stroke: '#142230',
+          strokeThickness: 4,
+        })
+        .setOrigin(0.5)
+        .setDepth(80);
+    }
+  }
+
+  destroy(fromScene?: boolean) {
+    this.nameplate?.destroy();
+    this.nameplate = undefined;
+    super.destroy(fromScene);
   }
 
   alignBodyBottomTo(surfaceTop: number) {
@@ -101,6 +122,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (jumpPressed && this.jumpsRemaining > 0) {
       body.setVelocityY(-this.jumpSpeed);
       this.jumpsRemaining -= 1;
+    }
+
+    if (this.nameplate) {
+      this.nameplate.setPosition(this.x, this.y - this.displayHeight - 20);
     }
   }
 }

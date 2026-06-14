@@ -17,6 +17,7 @@ import { LAYOUT_EDITOR, LayoutEditor } from '../editor/LayoutEditor';
 import { Player } from '../objects/Player';
 import { canLandOnOneWaySurface } from '../physics/oneWaySurface';
 import { InteractionPrompt } from '../ui/InteractionPrompt';
+import type { AppUser } from '../../auth/types';
 
 const DEBUG_PHYSICS = import.meta.env.VITE_DEBUG_PHYSICS === 'true';
 
@@ -210,7 +211,8 @@ export class TeamSpaceScene extends Phaser.Scene {
   }
 
   private createPlayer() {
-    this.player = new Player(this, 260, TEAM_SPACE_GROUND_Y);
+    const user = this.registry.get('currentUser') as AppUser | undefined;
+    this.player = new Player(this, 260, TEAM_SPACE_GROUND_Y, user);
     this.player.alignBodyBottomTo(TEAM_SPACE_SURFACES.ground.y - TEAM_SPACE_SURFACES.ground.height / 2);
     this.physics.add.collider(this.player, this.collisionSurfaces);
     this.physics.add.collider(

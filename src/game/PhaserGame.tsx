@@ -4,12 +4,18 @@ import { LobbyScene } from './scenes/LobbyScene';
 import { OfficeScene } from './scenes/OfficeScene';
 import { TeamSpaceScene } from './scenes/TeamSpaceScene';
 import { CafeScene } from './scenes/CafeScene';
+import { SCENE_KEYS } from './constants/sceneKeys';
+import type { AppUser } from '../auth/types';
 
 const VIEWPORT_WIDTH = 1280;
 const VIEWPORT_HEIGHT = 720;
 const DEBUG_PHYSICS = import.meta.env.VITE_DEBUG_PHYSICS === 'true';
 
-export function PhaserGame() {
+type PhaserGameProps = {
+  user: AppUser;
+};
+
+export function PhaserGame({ user }: PhaserGameProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -28,7 +34,7 @@ export function PhaserGame() {
         return;
       }
 
-      gameRef.current = new Phaser.Game({
+      const game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: containerRef.current,
         width: VIEWPORT_WIDTH,
@@ -46,8 +52,14 @@ export function PhaserGame() {
             debug: DEBUG_PHYSICS,
           },
         },
-        scene: [LobbyScene, OfficeScene, TeamSpaceScene, CafeScene],
+        scene: [],
       });
+      game.registry.set('currentUser', user);
+      game.scene.add(SCENE_KEYS.lobby, LobbyScene, true);
+      game.scene.add(SCENE_KEYS.office, OfficeScene);
+      game.scene.add(SCENE_KEYS.teamSpace, TeamSpaceScene);
+      game.scene.add(SCENE_KEYS.cafe, CafeScene);
+      gameRef.current = game;
     };
 
     void createGame();
@@ -57,7 +69,7 @@ export function PhaserGame() {
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };
-  }, []);
+  }, [user]);
 
   return <div ref={containerRef} className="phaser-host" />;
 }
