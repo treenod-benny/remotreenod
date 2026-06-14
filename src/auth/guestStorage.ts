@@ -53,6 +53,10 @@ export function saveGuestUser(displayName: string, characterId: PlayerCharacterI
   return user;
 }
 
+export function persistGuestUser(user: AppUser) {
+  window.localStorage.setItem(GUEST_USER_KEY, JSON.stringify(user));
+}
+
 export function clearGuestUser() {
   window.localStorage.removeItem(GUEST_USER_KEY);
 }

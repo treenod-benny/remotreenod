@@ -21,6 +21,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private dropThroughUntil = 0;
   private oneWayDropEnabledUntil = 0;
   private nameplate?: Phaser.GameObjects.Text;
+  private speechBubble?: Phaser.GameObjects.Container;
+  private speechBubbleTimer?: Phaser.Time.TimerEvent;
 
   constructor(scene: Phaser.Scene, x: number, y: number, user?: AppUser) {
     super(scene, x, y, getPlayerCharacter(user?.characterId).assetKey);
@@ -64,8 +66,48 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   destroy(fromScene?: boolean) {
     this.nameplate?.destroy();
+    this.speechBubble?.destroy();
+    this.speechBubbleTimer?.destroy();
     this.nameplate = undefined;
+    this.speechBubble = undefined;
+    this.speechBubbleTimer = undefined;
     super.destroy(fromScene);
+  }
+
+  showSpeechBubble(message: string) {
+    const bubbleText = message.trim().slice(0, 80);
+
+    if (!bubbleText) {
+      return;
+    }
+
+    this.speechBubble?.destroy();
+    this.speechBubbleTimer?.destroy();
+
+    const text = this.scene.add
+      .text(0, 0, bubbleText, {
+        fontFamily: 'NanumSquareRound, Arial, sans-serif',
+        fontSize: '15px',
+        color: '#17202a',
+        wordWrap: {
+          width: 220,
+        },
+      })
+      .setOrigin(0.5);
+    const width = Math.max(72, text.width + 28);
+    const height = Math.max(36, text.height + 18);
+    const background = this.scene.add
+      .rectangle(0, 0, width, height, 0xffffff, 0.94)
+      .setStrokeStyle(2, 0x17202a, 0.24)
+      .setOrigin(0.5);
+    const tail = this.scene.add.triangle(0, height / 2 + 7, 0, 0, 14, 0, 7, 9, 0xffffff, 0.94).setOrigin(0.5);
+
+    this.speechBubble = this.scene.add.container(this.x, this.getSpeechBubbleY(), [background, text, tail]).setDepth(120);
+    this.speechBubbleTimer = this.scene.time.delayedCall(3600, () => {
+      this.speechBubble?.destroy();
+      this.speechBubble = undefined;
+      this.speechBubbleTimer = undefined;
+    });
   }
 
   alignBodyBottomTo(surfaceTop: number) {
@@ -127,5 +169,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.nameplate) {
       this.nameplate.setPosition(this.x, this.y - this.displayHeight - 20);
     }
+
+    if (this.speechBubble) {
+      this.speechBubble.setPosition(this.x, this.getSpeechBubbleY());
+    }
+  }
+
+  private getSpeechBubbleY() {
+    return this.y - this.displayHeight - 62;
   }
 }

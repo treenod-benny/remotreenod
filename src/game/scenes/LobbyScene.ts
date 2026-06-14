@@ -68,6 +68,7 @@ export class LobbyScene extends Phaser.Scene {
   private collisionSurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private oneWaySurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private layoutEditor!: LayoutEditor;
+  private localChatHandler?: (event: Event) => void;
 
   constructor() {
     super(SCENE_KEYS.lobby);
@@ -93,6 +94,7 @@ export class LobbyScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.portals.forEach((portal) => portal.destroy());
       this.npcs.forEach((npc) => npc.destroy());
+      this.removeLocalChatHandler();
     });
   }
 
@@ -117,6 +119,28 @@ export class LobbyScene extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12, 0, 90);
     this.cameras.main.setDeadzone(180, 120);
+    this.bindLocalChatHandler();
+  }
+
+  private bindLocalChatHandler() {
+    this.removeLocalChatHandler();
+    this.localChatHandler = (event: Event) => {
+      const message = (event as CustomEvent<{ body?: string }>).detail?.body;
+
+      if (message) {
+        this.player.showSpeechBubble(message);
+      }
+    };
+    window.addEventListener('remote-tree-node:local-chat', this.localChatHandler);
+  }
+
+  private removeLocalChatHandler() {
+    if (!this.localChatHandler) {
+      return;
+    }
+
+    window.removeEventListener('remote-tree-node:local-chat', this.localChatHandler);
+    this.localChatHandler = undefined;
   }
 
   private createUi() {

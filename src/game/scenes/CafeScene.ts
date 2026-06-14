@@ -28,6 +28,7 @@ export class CafeScene extends Phaser.Scene {
   private oneWaySurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private layoutEditor!: LayoutEditor;
   private exitPortal!: Phaser.GameObjects.Image;
+  private localChatHandler?: (event: Event) => void;
 
   constructor() {
     super(SCENE_KEYS.cafe);
@@ -49,6 +50,7 @@ export class CafeScene extends Phaser.Scene {
     this.createPlayer();
     this.createUi();
     this.layoutEditor.activate();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.removeLocalChatHandler());
   }
 
   update() {
@@ -114,6 +116,28 @@ export class CafeScene extends Phaser.Scene {
     );
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12, 0, 90);
     this.cameras.main.setDeadzone(180, 120);
+    this.bindLocalChatHandler();
+  }
+
+  private bindLocalChatHandler() {
+    this.removeLocalChatHandler();
+    this.localChatHandler = (event: Event) => {
+      const message = (event as CustomEvent<{ body?: string }>).detail?.body;
+
+      if (message) {
+        this.player.showSpeechBubble(message);
+      }
+    };
+    window.addEventListener('remote-tree-node:local-chat', this.localChatHandler);
+  }
+
+  private removeLocalChatHandler() {
+    if (!this.localChatHandler) {
+      return;
+    }
+
+    window.removeEventListener('remote-tree-node:local-chat', this.localChatHandler);
+    this.localChatHandler = undefined;
   }
 
   private createExitPortal() {

@@ -51,6 +51,7 @@ export class OfficeScene extends Phaser.Scene {
   private oneWaySurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private portals: OfficePortal[] = [];
   private layoutEditor!: LayoutEditor;
+  private localChatHandler?: (event: Event) => void;
 
   constructor() {
     super(SCENE_KEYS.office);
@@ -74,6 +75,7 @@ export class OfficeScene extends Phaser.Scene {
 
     this.prompt = new InteractionPrompt(this);
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.removeLocalChatHandler());
   }
 
   update() {
@@ -242,6 +244,28 @@ export class OfficeScene extends Phaser.Scene {
     );
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12, 0, 90);
     this.cameras.main.setDeadzone(180, 120);
+    this.bindLocalChatHandler();
+  }
+
+  private bindLocalChatHandler() {
+    this.removeLocalChatHandler();
+    this.localChatHandler = (event: Event) => {
+      const message = (event as CustomEvent<{ body?: string }>).detail?.body;
+
+      if (message) {
+        this.player.showSpeechBubble(message);
+      }
+    };
+    window.addEventListener('remote-tree-node:local-chat', this.localChatHandler);
+  }
+
+  private removeLocalChatHandler() {
+    if (!this.localChatHandler) {
+      return;
+    }
+
+    window.removeEventListener('remote-tree-node:local-chat', this.localChatHandler);
+    this.localChatHandler = undefined;
   }
 
   private handleInteraction() {
