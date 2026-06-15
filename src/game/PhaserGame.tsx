@@ -13,11 +13,17 @@ const DEBUG_PHYSICS = import.meta.env.VITE_DEBUG_PHYSICS === 'true';
 
 type PhaserGameProps = {
   user: AppUser;
+  onReady?: () => void;
 };
 
-export function PhaserGame({ user }: PhaserGameProps) {
+export function PhaserGame({ user, onReady }: PhaserGameProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
+  const onReadyRef = useRef(onReady);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,7 +45,7 @@ export function PhaserGame({ user }: PhaserGameProps) {
         parent: containerRef.current,
         width: VIEWPORT_WIDTH,
         height: VIEWPORT_HEIGHT,
-        backgroundColor: '#88d6f7',
+        backgroundColor: '#101820',
         pixelArt: false,
         scale: {
           mode: Phaser.Scale.FIT,
@@ -55,7 +61,15 @@ export function PhaserGame({ user }: PhaserGameProps) {
         scene: [],
       });
       game.registry.set('currentUser', user);
-      game.scene.add(SCENE_KEYS.lobby, LobbyScene, true);
+      game.events.once('remote-tree-node:lobby-ready', () => {
+        window.requestAnimationFrame(() => {
+          if (isMounted) {
+            onReadyRef.current?.();
+          }
+        });
+      });
+      game.scene.add(SCENE_KEYS.lobby, LobbyScene, false);
+      game.scene.start(SCENE_KEYS.lobby);
       game.scene.add(SCENE_KEYS.office, OfficeScene);
       game.scene.add(SCENE_KEYS.teamSpace, TeamSpaceScene);
       game.scene.add(SCENE_KEYS.cafe, CafeScene);

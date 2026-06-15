@@ -16,9 +16,11 @@ import {
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { LayoutEditor } from '../editor/LayoutEditor';
 import { Player } from '../objects/Player';
+import { PresenceAvatar } from '../objects/PresenceAvatar';
 import { canLandOnOneWaySurface } from '../physics/oneWaySurface';
 import { InteractionPrompt } from '../ui/InteractionPrompt';
 import type { AppUser } from '../../auth/types';
+import { FAKE_PRESENCE_ENTITIES } from '../constants/presence';
 
 const DEBUG_PHYSICS = import.meta.env.VITE_DEBUG_PHYSICS === 'true';
 
@@ -50,6 +52,7 @@ export class OfficeScene extends Phaser.Scene {
   private collisionSurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private oneWaySurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private portals: OfficePortal[] = [];
+  private presenceAvatars: PresenceAvatar[] = [];
   private layoutEditor!: LayoutEditor;
   private localChatHandler?: (event: Event) => void;
 
@@ -70,16 +73,21 @@ export class OfficeScene extends Phaser.Scene {
     this.createSurfaces();
     this.createDecor();
     this.createPortals();
+    this.createPresence();
     this.createPlayer();
     this.layoutEditor.activate();
 
     this.prompt = new InteractionPrompt(this);
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.removeLocalChatHandler());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.presenceAvatars.forEach((avatar) => avatar.destroy());
+      this.removeLocalChatHandler();
+    });
   }
 
   update() {
     this.player.update();
+    this.presenceAvatars.forEach((avatar) => avatar.update(this.time.now));
     this.handleInteraction();
     this.layoutEditor.update();
   }
@@ -228,6 +236,12 @@ export class OfficeScene extends Phaser.Scene {
       };
     });
     this.portals.forEach((portal, index) => this.layoutEditor.registerPortal(`portal.${portal.label}.${index}`, portal.sprite, portal.labelText));
+  }
+
+  private createPresence() {
+    this.presenceAvatars = FAKE_PRESENCE_ENTITIES.filter((entity) => entity.location === 'office').map(
+      (entity) => new PresenceAvatar(this, entity),
+    );
   }
 
   private createPlayer() {

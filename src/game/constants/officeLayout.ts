@@ -21,32 +21,32 @@ export const OFFICE_BACKGROUND = {
 } as const;
 
 export const OFFICE_SURFACES = {
-  ground: { x: 1342, y: 670, width: OFFICE_MAP_WIDTH, height: 32 },
+  ground: { x: 1343, y: 670, width: OFFICE_MAP_WIDTH, height: 32 },
   platforms: [
     {
       sprite: { key: ASSET_KEYS.officePlatform, x: 637, y: 500, scale: 0.56 },
-      surface: { x: 640, y: 465, width: 420, height: 24 },
+      surface: { x: 640, y: 492, width: 420, height: 24 },
     },
     {
       sprite: { key: ASSET_KEYS.officePlatform, x: 1403, y: 313, scale: 0.59 },
-      surface: { x: 1405, y: 275, width: 440, height: 24 },
+      surface: { x: 1399, y: 275, width: 440, height: 24 },
     },
     {
       sprite: { key: ASSET_KEYS.officePlatform, x: 2106, y: 415, scale: 0.66 },
-      surface: { x: 2106, y: 372, width: 506, height: 24 },
+      surface: { x: 2106, y: 366, width: 506, height: 24 },
     },
   ],
   stairs: [
-    { id: 0, key: ASSET_KEYS.officeStair01, x: 866, y: 427, scale: 0.58, surface: { x: 868, y: 411, width: 72, height: 16 } },
-    { id: 1, key: ASSET_KEYS.officeStair02, x: 921, y: 401, scale: 0.59, surface: { x: 922, y: 389, width: 88, height: 16 } },
-    { id: 2, key: ASSET_KEYS.officeStair03, x: 978, y: 375, scale: 0.55, surface: { x: 980, y: 359, width: 82, height: 16 } },
-    { id: 3, key: ASSET_KEYS.officeStair04, x: 1040, y: 349, scale: 0.58, surface: { x: 1038, y: 336, width: 84, height: 16 } },
-    { id: 5, key: ASSET_KEYS.officeStair02, x: 1135, y: 312, scale: 0.63, surface: { x: 1136, y: 300, width: 98, height: 16 } },
-    { id: 11, key: ASSET_KEYS.officeStair05, x: 1750, y: 338, scale: 0.5, surface: { x: 1749, y: 320, width: 220, height: 16 } },
+    { id: 0, key: ASSET_KEYS.officeStair01, x: 866, y: 427, scale: 0.58, surface: { x: 865, y: 420, width: 72, height: 16 } },
+    { id: 1, key: ASSET_KEYS.officeStair02, x: 921, y: 401, scale: 0.59, surface: { x: 919, y: 392, width: 88, height: 16 } },
+    { id: 2, key: ASSET_KEYS.officeStair03, x: 981, y: 377, scale: 0.55, surface: { x: 977, y: 368, width: 82, height: 16 } },
+    { id: 3, key: ASSET_KEYS.officeStair04, x: 1040, y: 349, scale: 0.58, surface: { x: 1041, y: 337, width: 84, height: 16 } },
+    { id: 5, key: ASSET_KEYS.officeStair02, x: 1135, y: 312, scale: 0.63, surface: { x: 1133, y: 297, width: 98, height: 16 } },
+    { id: 11, key: ASSET_KEYS.officeStair05, x: 1750, y: 338, scale: 0.5, surface: { x: 1750, y: 322, width: 220, height: 16 } },
   ],
   benches: [
-    { x: 774, y: 629, width: 130, height: 18 },
-    { x: 1916, y: 627, width: 130, height: 18 },
+    { x: 771, y: 640, width: 130, height: 18 },
+    { x: 1916, y: 654, width: 130, height: 18 },
   ],
 } as const;
 
@@ -71,18 +71,33 @@ export const OFFICE_DECOR = {
   ],
   editorDecor: [
     {
-      id: 'added.editor-lobby-npc-ovis.1',
-      textureKey: 'editor-lobby-npc-ovis',
-      x: 839,
-      y: 650,
-      scale: 0.23,
+      id: 'added.editor-npc-ovis.1',
+      textureKey: 'editor-npc-ovis',
+      x: 1050,
+      y: 648,
+      scale: 0.336,
       flipX: false,
+      depth: 20,
+    },
+    {
+      id: 'added.editor-npc-pokota.1',
+      textureKey: 'editor-npc-pokota',
+      x: 1346,
+      y: 650,
+      scale: 0.289,
+      flipX: true,
       depth: 20,
     },
   ],
 } as const;
 
-export type OfficePortalKind = 'lobby' | 'pokomerge' | 'pocopoco' | 'aiNexus' | 'clientCell';
+export type OfficePortalKind =
+  | 'lobby'
+  | 'chooseCommute'
+  | 'aiCollaboration'
+  | 'pokomergeShop'
+  | 'addressables'
+  | 'lobbyUx';
 
 export const OFFICE_PORTALS: Array<{
   kind: OfficePortalKind;
@@ -93,8 +108,9 @@ export const OFFICE_PORTALS: Array<{
   log: string;
 }> = [
   { kind: 'lobby', label: 'Lobby', x: 150, y: 658, scale: 0.24, log: 'Lobby portal entered' },
-  { kind: 'clientCell', label: 'Client Cell', x: 2015, y: 366, scale: 0.24, log: 'Client Cell room entered' },
-  { kind: 'pokomerge', label: 'Pokomerge', x: 596, y: 460, scale: 0.24, log: 'Pokomerge room entered' },
-  { kind: 'aiNexus', label: 'AI Nexus', x: 1286, y: 271, scale: 0.24, log: 'AI Nexus room entered' },
-  { kind: 'pocopoco', label: 'Pocopoco', x: 730, y: 460, scale: 0.24, log: 'Pocopoco room entered' },
+  { kind: 'lobbyUx', label: '로비 UX 개선', x: 2015, y: 366, scale: 0.24, log: 'Lobby UX workroom entered' },
+  { kind: 'pokomergeShop', label: '포코머지 상점 기능', x: 596, y: 460, scale: 0.24, log: 'Pokomerge shop workroom entered' },
+  { kind: 'aiCollaboration', label: 'AI 협업 공유', x: 1286, y: 271, scale: 0.24, log: 'AI collaboration workroom entered' },
+  { kind: 'addressables', label: 'Addressables 최적화', x: 730, y: 460, scale: 0.24, log: 'Addressables workroom entered' },
+  { kind: 'chooseCommute', label: '출근은선택', x: 2195, y: 366, scale: 0.24, log: 'Choose commute workroom entered' },
 ];

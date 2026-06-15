@@ -1,22 +1,30 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import type { AppUser } from '../auth/types';
 import { getPlayerCharacter, PLAYER_CHARACTERS, type PlayerCharacterId } from '../game/constants/playerCharacters';
 import { FAKE_PRESENCE_ENTITIES, PRESENCE_STATUS_LABELS, type PresenceStatus } from '../game/constants/presence';
 
 type PanelTab = 'users' | 'spaces';
-type ThoughtKind = 'question' | 'ai-suggestion' | 'adopted' | 'rejected' | 'issue' | 'resolved' | 'decision';
+type ChatChannel = 'space' | 'dm';
+type AiTool = 'codex' | 'claude';
+type BridgeStatus = 'checking' | 'connected' | 'disconnected';
+type MinimapLocation = 'lobby' | 'office' | 'workroom' | 'cafe';
 
-type ThoughtEvent = {
+type ChatMessage = {
+  id: number;
+  channel: ChatChannel;
+  author: string;
+  body: string;
+  time: string;
+  target?: string;
+};
+
+type MeetingMessage = {
   id: number;
   author: string;
-  kind: ThoughtKind;
   body: string;
   time: string;
 };
-
-type AiTool = 'codex' | 'claude';
-type BridgeStatus = 'checking' | 'connected' | 'disconnected';
 
 type BridgeHealth = {
   ok?: boolean;
@@ -43,15 +51,23 @@ type DeskSession = {
   workroom?: string;
 };
 
+type MeetingState = {
+  mic: boolean;
+  camera: boolean;
+  screen: boolean;
+};
+
+type MeetingError = 'mic' | 'camera' | 'screen' | null;
+
 const TEXT = {
-  chat: '사고흐름',
-  users: '\uC720\uC800',
+  chat: '채팅',
+  users: '\uD300',
   spaces: '\uACF5\uAC04',
   profile: '\uD504\uB85C\uD544',
   settings: '\uC124\uC815',
   logout: '\uB85C\uADF8\uC544\uC6C3',
-  messagePlaceholder: '공유할 사고 흐름 입력',
-  send: '공유',
+  messagePlaceholder: '메시지 입력',
+  send: '전송',
   status: '\uC0C1\uD0DC',
   currentSpace: '\uD604\uC7AC \uACF5\uAC04',
   members: '\uC811\uC18D\uC790',
@@ -60,22 +76,23 @@ const TEXT = {
   save: '\uC800\uC7A5',
   close: '\uB2EB\uAE30',
   aiWorkspace: 'AI Workspace',
+  minimap: '미니맵',
+  collapse: '축소',
+  expand: '확장',
+  meeting: '회의',
+  startMeeting: '회의하기',
+  leaveMeeting: '나가기',
+  dm: 'DM',
+  spaceChat: '공간',
+  online: '온라인',
+  lobbyMembers: 'Lobby 멤버',
+  quickActions: '빠른 실행',
 };
 
-const THOUGHT_KIND_LABELS: Record<ThoughtKind, string> = {
-  question: '질문',
-  'ai-suggestion': 'AI 제안',
-  adopted: '채택',
-  rejected: '거절',
-  issue: '문제 발생',
-  resolved: '문제 해결',
-  decision: '의사결정',
-};
-
-const MOCK_THOUGHTS: ThoughtEvent[] = [
-  { id: 1, author: 'Mina', kind: 'question', body: 'Addressables 캐싱 정책을 어느 레이어에 둘지 확인 중', time: '10:32' },
-  { id: 2, author: 'Claude', kind: 'ai-suggestion', body: '번들 단위 캐시 무효화 전략 제안', time: '10:41' },
-  { id: 3, author: 'Benny', kind: 'adopted', body: '상점 기능은 작은 워룸에서 먼저 검증', time: '10:47' },
+const MOCK_MESSAGES: ChatMessage[] = [
+  { id: 1, channel: 'space', author: 'Mina', body: '로비 UX 개선 방향 확인 중입니다.', time: '10:32' },
+  { id: 2, channel: 'space', author: 'Benny', body: '상점 기능은 작은 워룸에서 먼저 검증할게요.', time: '10:47' },
+  { id: 3, channel: 'dm', target: 'Mina', author: 'Mina', body: '잠깐 DM으로 확인할 내용이 있어요.', time: '10:51' },
 ];
 
 const SPACES = [
@@ -86,6 +103,17 @@ const SPACES = [
   { name: 'AI Workspace 설계', detail: '자리비움' },
 ];
 
+const MINIMAP_SPACES: Array<{ id: MinimapLocation; label: string; x: number; y: number }> = [
+  { id: 'lobby', label: 'Lobby', x: 18, y: 68 },
+  { id: 'office', label: 'Office', x: 52, y: 34 },
+  { id: 'workroom', label: 'Workroom', x: 78, y: 60 },
+  { id: 'cafe', label: 'Cafe', x: 36, y: 78 },
+];
+
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
 type GameOverlayProps = {
   user: AppUser;
 };
@@ -93,11 +121,21 @@ type GameOverlayProps = {
 export function GameOverlay({ user }: GameOverlayProps) {
   const { logout, updateGuestProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<PanelTab>('users');
+  const [activeChat, setActiveChat] = useState<ChatChannel>('space');
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isMinimapCollapsed, setIsMinimapCollapsed] = useState(false);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [isMeetingOpen, setIsMeetingOpen] = useState(false);
+  const [selectedDmName, setSelectedDmName] = useState('Mina');
   const [status, setStatus] = useState<PresenceStatus>('working');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [thoughts, setThoughts] = useState<ThoughtEvent[]>(MOCK_THOUGHTS);
+  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
+  const [meetingMessages, setMeetingMessages] = useState<MeetingMessage[]>([
+    { id: 1, author: 'System', body: '회의 채팅이 시작되었습니다.', time: '10:55' },
+  ]);
   const [messageText, setMessageText] = useState('');
-  const [thoughtKind, setThoughtKind] = useState<ThoughtKind>('question');
+  const [meetingMessageText, setMeetingMessageText] = useState('');
   const [profileName, setProfileName] = useState(user.displayName);
   const [profileCharacterId, setProfileCharacterId] = useState<PlayerCharacterId>(user.characterId);
   const [deskSession, setDeskSession] = useState<DeskSession>({ active: false });
@@ -107,14 +145,21 @@ export function GameOverlay({ user }: GameOverlayProps) {
   const [bridgeVersion, setBridgeVersion] = useState('');
   const [bridgeMode, setBridgeMode] = useState('');
   const [isAiWaiting, setIsAiWaiting] = useState(false);
+  const [meetingState, setMeetingState] = useState<MeetingState>({ mic: false, camera: false, screen: false });
+  const [meetingError, setMeetingError] = useState<MeetingError>(null);
   const [aiMessages, setAiMessages] = useState<AiWorkspaceMessage[]>([
     {
       id: 1,
       role: 'assistant',
-      body: '책상에 앉았습니다. 지금은 로컬 브리지 연결 전 mock 응답 모드입니다.',
+      body: '언제든 AI 작업을 시작할 수 있습니다. 책상에 앉으면 워룸 컨텍스트가 함께 표시됩니다.',
     },
   ]);
   const selectedCharacter = getPlayerCharacter(user.characterId);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const screenVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const handleDeskSession = (event: Event) => {
@@ -129,8 +174,29 @@ export function GameOverlay({ user }: GameOverlayProps) {
     };
   }, []);
 
+  useEffect(
+    () => () => {
+      stopStream(micStreamRef.current);
+      stopStream(cameraStreamRef.current);
+      stopStream(screenStreamRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
-    if (!deskSession.active) {
+    if (cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = cameraStreamRef.current;
+    }
+  }, [meetingState.camera]);
+
+  useEffect(() => {
+    if (screenVideoRef.current) {
+      screenVideoRef.current.srcObject = screenStreamRef.current;
+    }
+  }, [meetingState.screen]);
+
+  useEffect(() => {
+    if (!isAiOpen) {
       return;
     }
 
@@ -169,7 +235,7 @@ export function GameOverlay({ user }: GameOverlayProps) {
       isActive = false;
       window.clearInterval(intervalId);
     };
-  }, [deskSession.active]);
+  }, [isAiOpen]);
 
   const users = useMemo(
     () => [
@@ -178,12 +244,16 @@ export function GameOverlay({ user }: GameOverlayProps) {
         status,
         characterId: user.characterId,
         task: '현재 공간 탐색',
+        location: 'lobby' as MinimapLocation,
+        isCurrentUser: true,
       },
       ...FAKE_PRESENCE_ENTITIES.map((entity) => ({
         name: entity.displayName,
         status: entity.status,
         characterId: entity.characterId,
         task: entity.currentTask,
+        location: entity.location === 'workroom' ? 'workroom' : entity.location,
+        isCurrentUser: false,
       })),
     ],
     [status, user.characterId, user.displayName],
@@ -198,6 +268,28 @@ export function GameOverlay({ user }: GameOverlayProps) {
     [users],
   );
 
+  const minimapMembers = useMemo(
+    () =>
+      users.map((member) => ({
+        name: member.name,
+        status: member.status,
+        location: member.location,
+        isCurrentUser: member.isCurrentUser,
+      })),
+    [users],
+  );
+
+  const lobbyUsers = visibleUsers.filter((member) => member.location === 'lobby');
+  const activeSpaceCount = lobbyUsers.length;
+  const canStartMeeting = activeSpaceCount >= 2;
+  const filteredMessages = messages.filter((message) => {
+    if (activeChat === 'dm') {
+      return message.channel === 'dm' && message.target === selectedDmName;
+    }
+
+    return message.channel === activeChat;
+  });
+
   const handleSendMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const body = messageText.trim();
@@ -206,10 +298,11 @@ export function GameOverlay({ user }: GameOverlayProps) {
       return;
     }
 
-    const message = {
+    const message: ChatMessage = {
       id: Date.now(),
       author: user.displayName,
-      kind: thoughtKind,
+      channel: activeChat,
+      target: activeChat === 'dm' ? selectedDmName : undefined,
       body,
       time: new Intl.DateTimeFormat('ko-KR', {
         hour: '2-digit',
@@ -218,8 +311,12 @@ export function GameOverlay({ user }: GameOverlayProps) {
       }).format(new Date()),
     };
 
-    setThoughts((currentThoughts) => [...currentThoughts, message]);
-    window.dispatchEvent(new CustomEvent('remote-tree-node:local-chat', { detail: { body } }));
+    setMessages((currentMessages) => [...currentMessages, message]);
+
+    if (activeChat === 'space') {
+      window.dispatchEvent(new CustomEvent('remote-tree-node:local-chat', { detail: { body } }));
+    }
+
     setMessageText('');
   };
 
@@ -241,6 +338,107 @@ export function GameOverlay({ user }: GameOverlayProps) {
       characterId: profileCharacterId,
     });
     setIsProfileOpen(false);
+  };
+
+  const handleOpenDm = (memberName: string) => {
+    if (memberName === user.displayName) {
+      return;
+    }
+
+    setSelectedDmName(memberName);
+    setActiveChat('dm');
+    setIsChatCollapsed(false);
+  };
+
+  const handleOpenMeeting = () => {
+    if (!canStartMeeting) {
+      return;
+    }
+
+    setIsMeetingOpen(true);
+  };
+
+  const handleSendMeetingMessage = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const body = meetingMessageText.trim();
+
+    if (!body) {
+      return;
+    }
+
+    setMeetingMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: Date.now(),
+        author: user.displayName,
+        body,
+        time: new Intl.DateTimeFormat('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).format(new Date()),
+      },
+    ]);
+    setMeetingMessageText('');
+  };
+
+  const handleToggleMic = async () => {
+    setMeetingError(null);
+
+    if (meetingState.mic) {
+      stopStream(micStreamRef.current);
+      micStreamRef.current = null;
+      setMeetingState((current) => ({ ...current, mic: false }));
+      return;
+    }
+
+    try {
+      micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      setMeetingState((current) => ({ ...current, mic: true }));
+    } catch {
+      setMeetingError('mic');
+    }
+  };
+
+  const handleToggleCamera = async () => {
+    setMeetingError(null);
+
+    if (meetingState.camera) {
+      stopStream(cameraStreamRef.current);
+      cameraStreamRef.current = null;
+      setMeetingState((current) => ({ ...current, camera: false }));
+      return;
+    }
+
+    try {
+      cameraStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      setMeetingState((current) => ({ ...current, camera: true }));
+    } catch {
+      setMeetingError('camera');
+    }
+  };
+
+  const handleToggleScreen = async () => {
+    setMeetingError(null);
+
+    if (meetingState.screen) {
+      stopStream(screenStreamRef.current);
+      screenStreamRef.current = null;
+      setMeetingState((current) => ({ ...current, screen: false }));
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        screenStreamRef.current = null;
+        setMeetingState((current) => ({ ...current, screen: false }));
+      });
+      screenStreamRef.current = stream;
+      setMeetingState((current) => ({ ...current, screen: true }));
+    } catch {
+      setMeetingError('screen');
+    }
   };
 
   const handleSendAiMessage = async (event: FormEvent<HTMLFormElement>) => {
@@ -310,20 +508,33 @@ export function GameOverlay({ user }: GameOverlayProps) {
 
   return (
     <>
-      <aside className="side-panel" aria-label="workspace panel">
-        <div className="panel-tabs">
-          <button type="button" data-active={activeTab === 'users'} onClick={() => setActiveTab('users')}>
-            {TEXT.users}
-          </button>
-          <button type="button" data-active={activeTab === 'spaces'} onClick={() => setActiveTab('spaces')}>
-            {TEXT.spaces}
+      <aside className="side-panel" data-collapsed={isPanelCollapsed} aria-label="workspace panel">
+        <div className="panel-toolbar">
+          <div className="panel-tabs">
+            <button type="button" data-active={activeTab === 'users'} onClick={() => setActiveTab('users')}>
+              {TEXT.users}
+            </button>
+            <button type="button" data-active={activeTab === 'spaces'} onClick={() => setActiveTab('spaces')}>
+              {TEXT.spaces}
+            </button>
+          </div>
+          <button
+            className="panel-collapse-button"
+            type="button"
+            aria-expanded={!isPanelCollapsed}
+            onClick={() => setIsPanelCollapsed((current) => !current)}
+          >
+            {isPanelCollapsed ? TEXT.expand : TEXT.collapse}
           </button>
         </div>
 
-        {activeTab === 'users' && (
+        {!isPanelCollapsed && activeTab === 'users' && (
           <section className="panel-section">
             <div className="panel-heading">
-              <h2>{TEXT.members}</h2>
+              <div>
+                <h2>{TEXT.members}</h2>
+                <p>{TEXT.online}</p>
+              </div>
               <span>{visibleUsers.length}</span>
             </div>
             <div className="member-list">
@@ -338,6 +549,11 @@ export function GameOverlay({ user }: GameOverlayProps) {
                       <span data-status={member.status}>{PRESENCE_STATUS_LABELS[member.status]}</span>
                       <small>{member.detail}</small>
                     </div>
+                    {!member.isCurrentUser && (
+                      <button type="button" onClick={() => handleOpenDm(member.name)}>
+                        {TEXT.dm}
+                      </button>
+                    )}
                   </article>
                 );
               })}
@@ -345,11 +561,14 @@ export function GameOverlay({ user }: GameOverlayProps) {
           </section>
         )}
 
-        {activeTab === 'spaces' && (
+        {!isPanelCollapsed && activeTab === 'spaces' && (
           <section className="panel-section">
             <div className="panel-heading">
-              <h2>{TEXT.spaces}</h2>
-              <span>{TEXT.currentSpace}: Lobby</span>
+              <div>
+                <h2>{TEXT.spaces}</h2>
+                <p>{TEXT.currentSpace}</p>
+              </div>
+              <span>Lobby</span>
             </div>
             <div className="space-list">
               {SPACES.map((space) => (
@@ -363,39 +582,109 @@ export function GameOverlay({ user }: GameOverlayProps) {
         )}
       </aside>
 
-      <section className="chat-dock" aria-label="chat">
+      <section className="minimap-hud" data-collapsed={isMinimapCollapsed} aria-label="minimap">
+        <div className="minimap-header">
+          <h2>{TEXT.minimap}</h2>
+          <button type="button" onClick={() => setIsMinimapCollapsed((current) => !current)}>
+            {isMinimapCollapsed ? TEXT.expand : TEXT.collapse}
+          </button>
+        </div>
+        {!isMinimapCollapsed && (
+          <>
+            <div className="minimap-summary">{TEXT.lobbyMembers} {activeSpaceCount}</div>
+            <div className="minimap-map">
+              <div className="minimap-route minimap-route-a" />
+              <div className="minimap-route minimap-route-b" />
+              {MINIMAP_SPACES.map((space) => (
+                <button
+                  className="minimap-node"
+                  data-current={space.id === 'lobby'}
+                  type="button"
+                  key={space.id}
+                  style={{ '--map-x': `${space.x}%`, '--map-y': `${space.y}%` } as CSSProperties}
+                >
+                  <span>{space.label}</span>
+                </button>
+              ))}
+              {minimapMembers.map((member, index) => {
+                const space = MINIMAP_SPACES.find((candidate) => candidate.id === member.location) ?? MINIMAP_SPACES[0];
+                const offsetX = ((index % 3) - 1) * 4;
+                const offsetY = (Math.floor(index / 3) % 2) * 5 - 2;
+
+                return (
+                  <span
+                    className="minimap-presence"
+                    data-status={member.status}
+                    data-current={member.isCurrentUser}
+                    title={member.name}
+                    key={member.name}
+                    style={{ '--map-x': `${space.x + offsetX}%`, '--map-y': `${space.y + offsetY}%` } as CSSProperties}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="chat-dock" data-collapsed={isChatCollapsed} aria-label="chat">
         <div className="chat-dock-header">
           <h2>{TEXT.chat}</h2>
-          <span>{thoughts.length}</span>
+          <button type="button" onClick={() => setIsChatCollapsed((current) => !current)}>
+            {isChatCollapsed ? TEXT.expand : TEXT.collapse}
+          </button>
         </div>
-        <div className="message-list">
-          {thoughts.map((message) => (
-            <article className="message-item" key={message.id}>
-              <time>{message.time}</time>
-              <p>
-                <strong>{THOUGHT_KIND_LABELS[message.kind]} · {message.author}: </strong>
-                {message.body}
-              </p>
-            </article>
-          ))}
-        </div>
-        <form className="message-form" onSubmit={handleSendMessage}>
-          <select value={thoughtKind} onChange={(event) => setThoughtKind(event.target.value as ThoughtKind)}>
-            {Object.entries(THOUGHT_KIND_LABELS).map(([value, label]) => (
-              <option value={value} key={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <input value={messageText} placeholder={TEXT.messagePlaceholder} onChange={(event) => setMessageText(event.target.value)} />
-          <button type="submit">{TEXT.send}</button>
-        </form>
+        {!isChatCollapsed && (
+          <>
+            <div className="chat-tabs">
+              <button type="button" data-active={activeChat === 'space'} onClick={() => setActiveChat('space')}>
+                {TEXT.spaceChat}
+              </button>
+              <button type="button" data-active={activeChat === 'dm'} onClick={() => setActiveChat('dm')}>
+                {TEXT.dm}
+              </button>
+            </div>
+            {activeChat === 'dm' && (
+              <label className="chat-target-select">
+                <span>상대</span>
+                <select value={selectedDmName} onChange={(event) => setSelectedDmName(event.target.value)}>
+                  {visibleUsers
+                    .filter((member) => !member.isCurrentUser)
+                    .map((member) => (
+                      <option value={member.name} key={member.name}>
+                        {member.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            <div className="message-list">
+              {filteredMessages.map((message) => (
+                <article className="message-item" key={message.id}>
+                  <time>{message.time}</time>
+                  <p>
+                    <strong>{message.author}: </strong>
+                    {message.body}
+                  </p>
+                </article>
+              ))}
+              {filteredMessages.length === 0 && <div className="empty-state">아직 메시지가 없습니다.</div>}
+            </div>
+            <form className="message-form" onSubmit={handleSendMessage}>
+              <input value={messageText} placeholder={TEXT.messagePlaceholder} onChange={(event) => setMessageText(event.target.value)} />
+              <button type="submit">{TEXT.send}</button>
+            </form>
+          </>
+        )}
       </section>
 
       <div className="status-hud">
         <button className="profile-chip" type="button" onClick={handleOpenProfile}>
           <img src={selectedCharacter.imagePath} alt="" />
-          <span>{user.displayName}</span>
+          <span>
+            <strong>{user.displayName}</strong>
+            <small>Lobby</small>
+          </span>
         </button>
         <label className="status-select">
           <span>{TEXT.status}</span>
@@ -409,22 +698,34 @@ export function GameOverlay({ user }: GameOverlayProps) {
         </label>
       </div>
 
-      <nav className="bottom-bar" aria-label="quick actions">
-        <button type="button" onClick={() => document.querySelector<HTMLInputElement>('.chat-dock input')?.focus()}>
-          {TEXT.chat}
+      <nav className="bottom-bar" aria-label={TEXT.quickActions}>
+        <button type="button" onClick={() => setIsChatCollapsed((current) => !current)}>
+          {isChatCollapsed ? TEXT.chat : TEXT.collapse}
+        </button>
+        <button type="button" onClick={() => setIsAiOpen((current) => !current)}>
+          AI
+        </button>
+        <button type="button" disabled={!canStartMeeting} onClick={handleOpenMeeting}>
+          {TEXT.startMeeting}
+        </button>
+        <button type="button" onClick={() => setIsPanelCollapsed((current) => !current)}>
+          {isPanelCollapsed ? TEXT.expand : TEXT.users}
         </button>
         <button type="button" onClick={handleOpenProfile}>
           {TEXT.settings}
         </button>
       </nav>
 
-      {deskSession.active && (
+      {isAiOpen && (
         <section className="ai-workspace" aria-label="ai workspace">
           <div className="ai-workspace-header">
             <div>
               <h2>{TEXT.aiWorkspace}</h2>
-              <span>{deskSession.workroom ?? 'Workroom'}</span>
+              <span>{deskSession.active ? deskSession.workroom ?? 'Workroom' : '일반 AI 작업'}</span>
             </div>
+            <button type="button" onClick={() => setIsAiOpen(false)}>
+              {TEXT.close}
+            </button>
             <select value={aiTool} onChange={(event) => setAiTool(event.target.value as AiTool)}>
               <option value="codex">Codex</option>
               <option value="claude">Claude</option>
@@ -451,6 +752,96 @@ export function GameOverlay({ user }: GameOverlayProps) {
               {isAiWaiting ? '대기' : '전송'}
             </button>
           </form>
+        </section>
+      )}
+
+      {isMeetingOpen && (
+        <section className="meeting-panel" aria-label="meeting">
+          <div className="meeting-header">
+            <div>
+              <h2>{TEXT.meeting}</h2>
+              <span>{lobbyUsers.map((member) => member.name).join(', ')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMeetingOpen(false);
+              }}
+            >
+              {TEXT.leaveMeeting}
+            </button>
+          </div>
+          <div className="meeting-coming-soon">
+            멀티유저 음성/화상 송수신은 Coming soon입니다. 현재는 내 마이크, 카메라, 화면 공유 미리보기만 지원합니다.
+          </div>
+          <div className="meeting-stage">
+            <div className="meeting-video-grid">
+              {lobbyUsers.map((member) => (
+                <article className="meeting-tile" key={member.name}>
+                  {member.isCurrentUser && meetingState.camera ? (
+                    <video ref={cameraVideoRef} autoPlay muted playsInline />
+                  ) : (
+                    <strong>{member.name}</strong>
+                  )}
+                  <span>
+                    {member.isCurrentUser
+                      ? [meetingState.mic ? '음성 켜짐' : '음성 꺼짐', meetingState.camera ? '화상 켜짐' : '화상 꺼짐'].join(' · ')
+                      : '대기중'}
+                  </span>
+                </article>
+              ))}
+              {meetingState.screen && (
+                <article className="meeting-tile meeting-tile-wide">
+                  <video ref={screenVideoRef} autoPlay muted playsInline />
+                  <span>내 화면 공유중</span>
+                </article>
+              )}
+            </div>
+            <section className="meeting-chat" aria-label="meeting chat">
+              <h3>회의 채팅</h3>
+              <div className="meeting-message-list">
+                {meetingMessages.map((message) => (
+                  <article className="message-item" key={message.id}>
+                    <time>{message.time}</time>
+                    <p>
+                      <strong>{message.author}: </strong>
+                      {message.body}
+                    </p>
+                  </article>
+                ))}
+              </div>
+              <form className="meeting-message-form" onSubmit={handleSendMeetingMessage}>
+                <input value={meetingMessageText} placeholder="회의 메시지 입력" onChange={(event) => setMeetingMessageText(event.target.value)} />
+                <button type="submit">{TEXT.send}</button>
+              </form>
+            </section>
+          </div>
+          {meetingError && (
+            <div className="meeting-error">
+              {meetingError === 'mic' && '마이크 권한을 사용할 수 없습니다.'}
+              {meetingError === 'camera' && '카메라 권한을 사용할 수 없습니다.'}
+              {meetingError === 'screen' && '화면 공유를 시작할 수 없습니다.'}
+            </div>
+          )}
+          <div className="meeting-controls">
+            <button type="button" data-active={meetingState.mic} onClick={handleToggleMic}>
+              음성 미리보기
+            </button>
+            <button
+              type="button"
+              data-active={meetingState.camera}
+              onClick={handleToggleCamera}
+            >
+              화상 미리보기
+            </button>
+            <button
+              type="button"
+              data-active={meetingState.screen}
+              onClick={handleToggleScreen}
+            >
+              화면 공유 미리보기
+            </button>
+          </div>
         </section>
       )}
 

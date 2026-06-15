@@ -8,21 +8,12 @@ const OFFICE_ASSET_BASE = '/assets/office';
 const CAFE_ASSET_BASE = '/assets/cafe';
 
 export const IMAGE_ASSETS = [
-  { key: ASSET_KEYS.skyGradient, path: `${LOBBY_ASSET_BASE}/sky_gradient.png` },
-  { key: ASSET_KEYS.skyLightRays, path: `${LOBBY_ASSET_BASE}/sky_light_rays.png` },
-  { key: ASSET_KEYS.cloudLarge01, path: `${LOBBY_ASSET_BASE}/cloud_large_01.png` },
-  { key: ASSET_KEYS.cloudLarge02, path: `${LOBBY_ASSET_BASE}/cloud_large_02.png` },
-  { key: ASSET_KEYS.cloudMedium01, path: `${LOBBY_ASSET_BASE}/cloud_medium_01.png` },
-  { key: ASSET_KEYS.cloudSmall01, path: `${LOBBY_ASSET_BASE}/cloud_small_01.png` },
-  { key: ASSET_KEYS.cloudSmall02, path: `${LOBBY_ASSET_BASE}/cloud_small_02.png` },
-  { key: ASSET_KEYS.bgCity, path: `${LOBBY_ASSET_BASE}/bg_city.png` },
-  { key: ASSET_KEYS.bgBridge, path: `${LOBBY_ASSET_BASE}/bg_bridge.png` },
-  { key: ASSET_KEYS.bgOcean, path: `${LOBBY_ASSET_BASE}/bg_ocean.png` },
+  { key: ASSET_KEYS.lobbyBackground, path: `${LOBBY_ASSET_BASE}/bg.png` },
   { key: ASSET_KEYS.ground, path: `${LOBBY_ASSET_BASE}/ground.png` },
   { key: ASSET_KEYS.platformLarge, path: `${LOBBY_ASSET_BASE}/platform_grass_large.png` },
   { key: ASSET_KEYS.platformSmall, path: `${LOBBY_ASSET_BASE}/platform_grass_small.png` },
   { key: ASSET_KEYS.portalBlue, path: `${LOBBY_ASSET_BASE}/portal_blue.png` },
-  { key: ASSET_KEYS.npcPokota, path: `${LOBBY_ASSET_BASE}/npc_pokota.png` },
+  { key: ASSET_KEYS.npcPokota, path: `${LOBBY_ASSET_BASE}/npc_treetive.png` },
   { key: ASSET_KEYS.bench, path: `${LOBBY_ASSET_BASE}/obj_bench.png` },
   { key: ASSET_KEYS.lamp, path: `${LOBBY_ASSET_BASE}/obj_lamp.png` },
   ...PLAYER_CHARACTERS.map((character) => ({ key: character.assetKey, path: character.imagePath })),

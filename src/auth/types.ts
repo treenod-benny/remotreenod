@@ -6,5 +6,5 @@ export type AppUser = {
   characterId: PlayerCharacterId;
   email?: string;
   photoURL?: string;
-  provider: 'guest' | 'google';
+  provider: 'guest';
 };

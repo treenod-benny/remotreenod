@@ -9,6 +9,7 @@ type NpcConfig = {
   dialogue: string[];
   interactionRadius?: number;
   scale?: number;
+  flipX?: boolean;
 };
 
 export class Npc {
@@ -26,6 +27,7 @@ export class Npc {
       .image(config.x, config.y, ASSET_KEYS.npcPokota)
       .setOrigin(0.5, 1)
       .setScale(config.scale ?? 0.33)
+      .setFlipX(config.flipX ?? false)
       .setDepth(35);
   }
 

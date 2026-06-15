@@ -17,21 +17,21 @@ export const TEAM_SPACE_BACKGROUND = {
 } as const;
 
 export const TEAM_SPACE_SURFACES = {
-  ground: { x: 638, y: 672, width: TEAM_SPACE_MAP_WIDTH, height: 32 },
+  ground: { x: 635, y: 676, width: TEAM_SPACE_MAP_WIDTH, height: 32 },
   middleFloors: [],
   platforms: [
-    { x: 467, y: 307, width: 280, height: 18 },
-    { x: 1152, y: 288, width: 315, height: 18 },
-    { x: 179, y: 431, width: 415, height: 20 },
-    { x: 733, y: 431, width: 300, height: 18 },
-    { x: 854, y: 229, width: 292, height: 18 },
+    { x: 467, y: 308, width: 280, height: 18 },
+    { x: 1153, y: 291, width: 315, height: 18 },
+    { x: 179, y: 428, width: 415, height: 20 },
+    { x: 734, y: 433, width: 300, height: 18 },
+    { x: 851, y: 243, width: 292, height: 18 },
   ],
   desks: [
-    { x: 218, y: 601, width: 186, height: 16 },
-    { x: 146, y: 378, width: 150, height: 14 },
-    { x: 521, y: 602, width: 190, height: 16 },
-    { x: 468, y: 254, width: 150, height: 14 },
-    { x: 850, y: 193, width: 150, height: 14 },
+    { x: 220, y: 606, width: 186, height: 16 },
+    { x: 148, y: 380, width: 150, height: 14 },
+    { x: 521, y: 610, width: 190, height: 16 },
+    { x: 470, y: 257, width: 150, height: 14 },
+    { x: 849, y: 196, width: 150, height: 14 },
   ],
 } as const;
 
@@ -39,7 +39,7 @@ export const TEAM_SPACE_DECOR = {
   desks: [
     { key: ASSET_KEYS.teamPropDesks, x: 220, y: 655, scale: 0.44, depth: 20 },
     { key: ASSET_KEYS.teamPropDesks, x: 147, y: 420, scale: 0.34, depth: 20 },
-    { key: ASSET_KEYS.teamPropDesks, x: 521, y: 656, scale: 0.44, depth: 20 },
+    { key: ASSET_KEYS.teamPropDesks, x: 520, y: 659, scale: 0.44, depth: 20 },
     { key: ASSET_KEYS.teamPropDesks, x: 468, y: 296, scale: 0.34, depth: 20 },
     { key: ASSET_KEYS.teamPropDesks, x: 850, y: 235, scale: 0.34, depth: 20 },
   ],

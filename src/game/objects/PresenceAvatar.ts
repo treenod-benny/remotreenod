@@ -21,7 +21,7 @@ export class PresenceAvatar {
     this.sprite = scene.add
       .image(entity.x, entity.y, getPlayerCharacter(entity.characterId).assetKey)
       .setOrigin(0.5, 1)
-      .setScale(0.38)
+      .setScale(0.42)
       .setDepth(38)
       .setAlpha(entity.status === 'afk' ? 0.72 : 0.95)
       .setInteractive({ useHandCursor: true });
