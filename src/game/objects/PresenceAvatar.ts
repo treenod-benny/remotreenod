@@ -11,12 +11,18 @@ export class PresenceAvatar {
   private readonly baseX: number;
   private readonly baseY: number;
   private readonly phase: number;
+  private currentX: number;
+  private targetX: number;
+  private pauseUntil = 0;
+  private lastUpdateTime?: number;
 
   constructor(scene: Phaser.Scene, entity: PresenceEntity) {
     this.entity = entity;
     this.baseX = entity.x;
     this.baseY = entity.y;
     this.phase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    this.currentX = entity.x;
+    this.targetX = this.pickNextWanderTarget(entity.x);
 
     this.sprite = scene.add
       .image(entity.x, entity.y, getPlayerCharacter(entity.characterId).assetKey)
@@ -55,12 +61,15 @@ export class PresenceAvatar {
   }
 
   update(time: number) {
-    let x = this.baseX;
+    const deltaSeconds = this.lastUpdateTime === undefined ? 0 : Math.min((time - this.lastUpdateTime) / 1000, 0.1);
+    this.lastUpdateTime = time;
+
+    let x = this.currentX;
     let y = this.baseY;
 
     if (this.entity.behavior === 'walk') {
-      x += Math.sin(time / 900 + this.phase) * 42;
-      this.sprite.setFlipX(Math.cos(time / 900 + this.phase) > 0);
+      x = this.updateWalk(time, deltaSeconds);
+      y += Math.sin(time / 180 + this.phase) * 1.5;
     }
 
     if (this.entity.behavior === 'look-around') {
@@ -75,6 +84,52 @@ export class PresenceAvatar {
     this.nameplate.setPosition(x, y - this.sprite.displayHeight - 20);
     this.statusText.setPosition(x, y - this.sprite.displayHeight - 2);
     this.tooltip.setPosition(x, y - this.sprite.displayHeight - 50);
+  }
+
+  private updateWalk(time: number, deltaSeconds: number) {
+    if (time < this.pauseUntil) {
+      return this.currentX;
+    }
+
+    const distance = this.targetX - this.currentX;
+    const direction = Math.sign(distance);
+
+    if (Math.abs(distance) <= 2) {
+      this.currentX = this.targetX;
+      this.targetX = this.pickNextWanderTarget(this.currentX);
+      this.pauseUntil = time + this.getPauseDuration();
+      return this.currentX;
+    }
+
+    const speed = this.entity.wander?.speed ?? 30;
+    const step = speed * deltaSeconds;
+    this.currentX += direction * Math.min(Math.abs(distance), step);
+    this.sprite.setFlipX(direction > 0);
+
+    return this.currentX;
+  }
+
+  private pickNextWanderTarget(currentX: number) {
+    const range = this.entity.wander ?? {
+      minX: this.baseX - 72,
+      maxX: this.baseX + 72,
+    };
+    const minX = Math.min(range.minX, range.maxX);
+    const maxX = Math.max(range.minX, range.maxX);
+    const nextX = Phaser.Math.Between(Math.round(minX), Math.round(maxX));
+
+    if (Math.abs(nextX - currentX) < 48) {
+      return currentX < (minX + maxX) / 2 ? maxX : minX;
+    }
+
+    return nextX;
+  }
+
+  private getPauseDuration() {
+    const min = this.entity.wander?.pauseMinMs ?? 700;
+    const max = this.entity.wander?.pauseMaxMs ?? 1800;
+
+    return Phaser.Math.Between(min, max);
   }
 
   destroy() {

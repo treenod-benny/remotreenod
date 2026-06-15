@@ -17,6 +17,13 @@ export type PresenceEntity = {
   location: PresenceLocation;
   behavior: PresenceBehavior;
   characterId: PlayerCharacterId;
+  wander?: {
+    minX: number;
+    maxX: number;
+    speed?: number;
+    pauseMinMs?: number;
+    pauseMaxMs?: number;
+  };
 };
 
 export const PRESENCE_STATUS_LABELS: Record<PresenceStatus, string> = {
@@ -63,6 +70,11 @@ export const FAKE_PRESENCE_ENTITIES: PresenceEntity[] = [
     location: 'office',
     behavior: 'walk',
     characterId: 'treetive-03',
+    wander: {
+      minX: 1810,
+      maxX: 2185,
+      speed: 34,
+    },
   },
   {
     id: 'fake-arin',
@@ -73,8 +85,13 @@ export const FAKE_PRESENCE_ENTITIES: PresenceEntity[] = [
     x: 760,
     y: 663,
     location: 'lobby',
-    behavior: 'idle',
+    behavior: 'walk',
     characterId: 'treetive-04',
+    wander: {
+      minX: 635,
+      maxX: 935,
+      speed: 28,
+    },
   },
   {
     id: 'fake-sora',
@@ -97,7 +114,14 @@ export const FAKE_PRESENCE_ENTITIES: PresenceEntity[] = [
     x: 520,
     y: 683,
     location: 'workroom',
-    behavior: 'idle',
+    behavior: 'walk',
     characterId: 'treetive-03',
+    wander: {
+      minX: 410,
+      maxX: 690,
+      speed: 24,
+      pauseMinMs: 900,
+      pauseMaxMs: 2200,
+    },
   },
 ];
