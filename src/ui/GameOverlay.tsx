@@ -629,9 +629,8 @@ export function GameOverlay({ user }: GameOverlayProps) {
 
       <section className="chat-dock" data-collapsed={isChatCollapsed} aria-label="chat">
         <div className="chat-dock-header">
-          <h2>{TEXT.chat}</h2>
           <button type="button" onClick={() => setIsChatCollapsed((current) => !current)}>
-            {isChatCollapsed ? TEXT.expand : TEXT.collapse}
+            {isChatCollapsed ? '+' : '-'}
           </button>
         </div>
         {!isChatCollapsed && (
@@ -700,7 +699,7 @@ export function GameOverlay({ user }: GameOverlayProps) {
 
       <nav className="bottom-bar" aria-label={TEXT.quickActions}>
         <button type="button" onClick={() => setIsChatCollapsed((current) => !current)}>
-          {isChatCollapsed ? TEXT.chat : TEXT.collapse}
+          {isChatCollapsed ? '+' : '-'}
         </button>
         <button type="button" onClick={() => setIsAiOpen((current) => !current)}>
           AI
