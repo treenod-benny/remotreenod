@@ -15,11 +15,14 @@ import {
 } from '../constants/teamSpaceLayout';
 import { LAYOUT_EDITOR, LayoutEditor } from '../editor/LayoutEditor';
 import { Player } from '../objects/Player';
+import { PresenceAvatar } from '../objects/PresenceAvatar';
 import { canLandOnOneWaySurface } from '../physics/oneWaySurface';
 import { InteractionPrompt } from '../ui/InteractionPrompt';
 import type { AppUser } from '../../auth/types';
+import { FAKE_PRESENCE_ENTITIES } from '../constants/presence';
 
 const DEBUG_PHYSICS = import.meta.env.VITE_DEBUG_PHYSICS === 'true';
+const SEATED_Y_OFFSET = -34;
 
 function applyFlip<T extends Phaser.GameObjects.Image>(image: T, config: unknown) {
   const flipX =
@@ -37,6 +40,19 @@ type TeamSpaceData = {
   teamName?: string;
 };
 
+type WorkDesk = {
+  id: string;
+  x: number;
+  y: number;
+  zone: Phaser.GameObjects.Zone;
+  marker: Phaser.GameObjects.Text;
+};
+
+type SeatPoint = {
+  x: number;
+  y: number;
+};
+
 export class TeamSpaceScene extends Phaser.Scene {
   private player!: Player;
   private prompt!: InteractionPrompt;
@@ -44,6 +60,9 @@ export class TeamSpaceScene extends Phaser.Scene {
   private collisionSurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private oneWaySurfaces!: Phaser.Physics.Arcade.StaticGroup;
   private exitPortal!: Phaser.GameObjects.Image;
+  private presenceAvatars: PresenceAvatar[] = [];
+  private workDesks: WorkDesk[] = [];
+  private activeDeskId?: string;
   private layoutEditor!: LayoutEditor;
   private teamName = 'Team Space';
   private localChatHandler?: (event: Event) => void;
@@ -69,17 +88,28 @@ export class TeamSpaceScene extends Phaser.Scene {
     this.createSurfaces();
     this.createDecor();
     this.createExitPortal();
+    this.createPresence();
     this.createPlayer();
+    this.createDeskInteractions();
     this.createTitle();
     this.createLayoutEditor();
 
     this.prompt = new InteractionPrompt(this);
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.removeLocalChatHandler());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.presenceAvatars.forEach((avatar) => avatar.destroy());
+      this.workDesks.forEach((desk) => {
+        desk.zone.destroy();
+        desk.marker.destroy();
+      });
+      this.removeLocalChatHandler();
+    });
   }
 
   update() {
     this.player.update();
+    this.presenceAvatars.forEach((avatar) => avatar.update(this.time.now));
+    this.syncDeskState();
 
     if (LAYOUT_EDITOR) {
       this.updateLayoutEditor();
@@ -158,8 +188,9 @@ export class TeamSpaceScene extends Phaser.Scene {
 
   private createDecor() {
     TEAM_SPACE_DECOR.furniture.forEach((item) => {
+      const depth = item.key === ASSET_KEYS.officeChair ? 18 : item.depth;
       const image = applyFlip(
-        this.add.image(item.x, item.y, item.key).setOrigin(0.5, 1).setScale(item.scale).setDepth(item.depth),
+        this.add.image(item.x, item.y, item.key).setOrigin(0.5, 1).setScale(item.scale).setDepth(depth),
         item,
       );
       this.registerEditableImage(`furniture.${item.key}.${item.x}`, image);
@@ -212,6 +243,12 @@ export class TeamSpaceScene extends Phaser.Scene {
     this.layoutEditor.registerPortal('exitPortal', this.exitPortal, labelText);
   }
 
+  private createPresence() {
+    this.presenceAvatars = FAKE_PRESENCE_ENTITIES.filter(
+      (entity) => entity.location === 'workroom' || entity.currentTask === this.teamName,
+    ).map((entity) => new PresenceAvatar(this, entity));
+  }
+
   private createPlayer() {
     const user = this.registry.get('currentUser') as AppUser | undefined;
     this.player = new Player(this, 260, TEAM_SPACE_GROUND_Y, user);
@@ -227,6 +264,113 @@ export class TeamSpaceScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12, 0, 90);
     this.cameras.main.setDeadzone(180, 120);
     this.bindLocalChatHandler();
+  }
+
+  private createDeskInteractions() {
+    if (LAYOUT_EDITOR) {
+      return;
+    }
+
+    this.workDesks = TEAM_SPACE_DECOR.desks.map((desk, index) => {
+      const surface = TEAM_SPACE_SURFACES.desks[index];
+      const id = `desk.${index}`;
+      const seat = this.getSeatPoint(desk);
+      const zone = this.add
+        .zone(desk.x, desk.y - 48, (surface?.width ?? 160) + 36, 92)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      const marker = this.add
+        .text(desk.x, desk.y - 112, '빈 책상', {
+          fontFamily: 'NanumSquareRound, Arial, sans-serif',
+          fontSize: '13px',
+          color: '#ffffff',
+          backgroundColor: 'rgba(16, 24, 32, 0.76)',
+          padding: {
+            x: 8,
+            y: 5,
+          },
+        })
+        .setOrigin(0.5)
+        .setDepth(100)
+        .setVisible(false);
+      const workDesk = { id, x: seat.x, y: seat.y, zone, marker };
+
+      zone.on(Phaser.Input.Events.POINTER_OVER, () => {
+        marker.setText(this.activeDeskId === id ? '사용중' : '빈 책상');
+        marker.setVisible(true);
+      });
+      zone.on(Phaser.Input.Events.POINTER_OUT, () => {
+        marker.setVisible(this.activeDeskId === id);
+      });
+      zone.on(Phaser.Input.Events.POINTER_DOWN, () => {
+        this.sitAtDesk(workDesk);
+      });
+
+      return workDesk;
+    });
+  }
+
+  private sitAtDesk(desk: WorkDesk) {
+    if (this.activeDeskId === desk.id) {
+      return;
+    }
+
+    this.activeDeskId = desk.id;
+    this.workDesks.forEach((workDesk) => {
+      workDesk.marker.setText(workDesk.id === desk.id ? '사용중' : '빈 책상');
+      workDesk.marker.setVisible(workDesk.id === desk.id);
+    });
+    this.player.setSeatedAt(desk.x, desk.y, '업무중');
+    window.dispatchEvent(
+      new CustomEvent('remote-tree-node:desk-session', {
+        detail: {
+          active: true,
+          deskId: desk.id,
+          workroom: this.teamName,
+        },
+      }),
+    );
+  }
+
+  private getSeatPoint(desk: { x: number; y: number }) {
+    const chairs = TEAM_SPACE_DECOR.furniture.filter((item) => item.key === ASSET_KEYS.officeChair);
+    const chair = chairs
+      .map((item) => ({
+        item,
+        distance: Phaser.Math.Distance.Between(item.x, item.y, desk.x, desk.y),
+      }))
+      .sort((a, b) => a.distance - b.distance)[0]?.item;
+
+    if (!chair) {
+      return {
+        x: desk.x,
+        y: desk.y,
+      } satisfies SeatPoint;
+    }
+
+    return {
+      x: Phaser.Math.Linear(chair.x, desk.x, 0.48),
+      y: Phaser.Math.Linear(chair.y, desk.y, 0.48) + SEATED_Y_OFFSET,
+    } satisfies SeatPoint;
+  }
+
+  private syncDeskState() {
+    if (!this.activeDeskId || this.player.isSeatedForWork()) {
+      return;
+    }
+
+    this.workDesks.forEach((desk) => {
+      desk.marker.setText('빈 책상');
+      desk.marker.setVisible(false);
+    });
+    window.dispatchEvent(
+      new CustomEvent('remote-tree-node:desk-session', {
+        detail: {
+          active: false,
+        },
+      }),
+    );
+    this.activeDeskId = undefined;
   }
 
   private bindLocalChatHandler() {

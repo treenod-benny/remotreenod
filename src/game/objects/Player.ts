@@ -10,6 +10,9 @@ type MovementKeys = {
   jump: Phaser.Input.Keyboard.Key;
 };
 
+const DEFAULT_DEPTH = 40;
+const SEATED_DEPTH = 19.5;
+
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: MovementKeys;
@@ -23,6 +26,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private nameplate?: Phaser.GameObjects.Text;
   private speechBubble?: Phaser.GameObjects.Container;
   private speechBubbleTimer?: Phaser.Time.TimerEvent;
+  private seatedLabel?: Phaser.GameObjects.Text;
+  private isSeated = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, user?: AppUser) {
     super(scene, x, y, getPlayerCharacter(user?.characterId).assetKey);
@@ -30,7 +35,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.setDepth(40);
+    this.setDepth(DEFAULT_DEPTH);
     this.setCollideWorldBounds(true);
     this.setOrigin(0.5, 1);
     this.setScale(0.42);
@@ -71,6 +76,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.nameplate = undefined;
     this.speechBubble = undefined;
     this.speechBubbleTimer = undefined;
+    this.seatedLabel?.destroy();
+    this.seatedLabel = undefined;
     super.destroy(fromScene);
   }
 
@@ -125,6 +132,49 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.oneWayDropEnabledUntil = this.scene.time.now + 120;
   }
 
+  setSeatedAt(x: number, y: number, label = '업무중') {
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    this.isSeated = true;
+    this.setPosition(x, y);
+    this.setDepth(SEATED_DEPTH);
+    this.setVelocity(0, 0);
+    body.setAcceleration(0, 0);
+    body.setAllowGravity(false);
+    body.updateFromGameObject();
+
+    if (!this.seatedLabel) {
+      this.seatedLabel = this.scene.add
+        .text(x, y - this.displayHeight - 2, label, {
+          fontFamily: 'NanumSquareRound, Arial, sans-serif',
+          fontSize: '12px',
+          color: '#fff0b8',
+          stroke: '#142230',
+          strokeThickness: 3,
+        })
+        .setOrigin(0.5)
+        .setDepth(81);
+      return;
+    }
+
+    this.seatedLabel.setText(label).setVisible(true);
+  }
+
+  clearSeated() {
+    if (!this.isSeated) {
+      return;
+    }
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    this.isSeated = false;
+    this.setDepth(DEFAULT_DEPTH);
+    body.setAllowGravity(true);
+    this.seatedLabel?.setVisible(false);
+  }
+
+  isSeatedForWork() {
+    return this.isSeated;
+  }
+
   update() {
     const body = this.body as Phaser.Physics.Arcade.Body;
     const moveLeft = this.cursors.left.isDown || this.wasd.left.isDown;
@@ -134,6 +184,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
       Phaser.Input.Keyboard.JustDown(this.wasd.up) ||
       Phaser.Input.Keyboard.JustDown(this.wasd.jump);
+    const movementPressed = moveLeft || moveRight || dropPressed || jumpPressed;
+
+    if (this.isSeated) {
+      body.setAccelerationX(0);
+      body.setVelocity(0, 0);
+
+      if (movementPressed) {
+        this.clearSeated();
+      }
+
+      this.updateAttachedText();
+      return;
+    }
 
     let accelerationX = 0;
 
@@ -166,16 +229,24 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.jumpsRemaining -= 1;
     }
 
+    this.updateAttachedText();
+  }
+
+  private getSpeechBubbleY() {
+    return this.y - this.displayHeight - 62;
+  }
+
+  private updateAttachedText() {
     if (this.nameplate) {
       this.nameplate.setPosition(this.x, this.y - this.displayHeight - 20);
+    }
+
+    if (this.seatedLabel) {
+      this.seatedLabel.setPosition(this.x, this.y - this.displayHeight - 2);
     }
 
     if (this.speechBubble) {
       this.speechBubble.setPosition(this.x, this.getSpeechBubbleY());
     }
-  }
-
-  private getSpeechBubbleY() {
-    return this.y - this.displayHeight - 62;
   }
 }
